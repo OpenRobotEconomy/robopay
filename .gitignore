@@ -1,0 +1,25 @@
+# colcon / ROS 2
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Wallet secrets - NEVER commit these
+*.key
+*.pem
+*-recovery-file.json
+.robopay/
+*wallets*.json
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.idea/

@@ -1,0 +1,15 @@
+# goal
+string from_address
+string to_address
+string amount
+string asset
+string terms_hash    # what both parties sign to release
+uint8 trust_level
+float64 timeout_seconds
+---
+# result
+bool released        # true = paid out, false = refunded
+string tx_hash
+---
+# feedback
+string state         # "locked" | "awaiting_proof" | "proof_partial" | "releasing" | ...

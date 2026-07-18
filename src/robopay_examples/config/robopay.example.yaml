@@ -1,0 +1,15 @@
+# Example robopay configuration (read by condition_node in Phase 6).
+robopay:
+  backend: mock          # mock | self_custody | circle
+  chain: base
+  asset: USDC
+
+  conditions:
+    - name: delivery_payment
+      watch_topic: "/handoff/status"
+      predicate: "msg.handed_off == True"
+      action:
+        type: escrow
+        to: "did:pkh:eip155:8453:0x000000000000000000000000000000000000dEaD"
+        amount: "2.50"
+        trust_level: 1

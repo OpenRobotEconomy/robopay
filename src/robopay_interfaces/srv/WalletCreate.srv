@@ -1,0 +1,5 @@
+string label
+---
+bool success
+string address       # only the public address is returned over ROS
+string error

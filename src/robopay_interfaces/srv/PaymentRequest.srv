@@ -1,0 +1,9 @@
+# Robot-to-robot "402 Payment Required": a payee asks a payer to pay for a service.
+string payer_address
+string amount
+string asset
+string memo          # what the payment is for
+---
+bool accepted
+string tx_hash
+string error

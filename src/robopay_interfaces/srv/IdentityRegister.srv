@@ -1,0 +1,6 @@
+string address
+string metadata_json # services offered, docs url, price, etc.
+---
+bool success
+string did           # did:pkh:eip155:<chain>:<address>
+string error

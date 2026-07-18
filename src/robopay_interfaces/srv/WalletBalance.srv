@@ -1,0 +1,6 @@
+string address
+---
+bool success
+string usdc          # decimal string
+string gas           # native gas-token balance, decimal string
+string error

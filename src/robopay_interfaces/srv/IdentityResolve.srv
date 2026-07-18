@@ -1,0 +1,6 @@
+string did           # a did:pkh or a raw address
+---
+bool success
+string address
+string metadata_json
+string error

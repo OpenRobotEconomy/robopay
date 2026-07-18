@@ -1,0 +1,17 @@
+{
+  "name": "robopay (ROS 2 Humble)",
+  "build": { "dockerfile": "Dockerfile" },
+  "workspaceFolder": "/workspaces/robopay",
+  "runArgs": ["--net=host"],
+  "remoteEnv": { "DISPLAY": "${localEnv:DISPLAY}" },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-iot.vscode-ros",
+        "charliermarsh.ruff"
+      ]
+    }
+  },
+  "postCreateCommand": "rosdep update || true"
+}

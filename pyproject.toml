@@ -1,0 +1,10 @@
+# Repo-wide Python tooling for the ament_python packages.
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"

@@ -1,0 +1,42 @@
+name: ci
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: humble
+            experimental: false
+          - ros_distro: jazzy
+            experimental: false
+          - ros_distro: lyrical      # newest LTS; image may lag — non-blocking for now
+            experimental: true
+    container: ros:${{ matrix.ros_distro }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve dependencies
+        run: |
+          apt-get update
+          rosdep update
+          rosdep install --from-paths src --ignore-src -y || true
+
+      - name: Build
+        shell: bash
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          colcon build
+
+      - name: Test
+        shell: bash
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          colcon test
+          colcon test-result --verbose

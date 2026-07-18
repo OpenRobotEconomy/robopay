@@ -1,0 +1,7 @@
+string statement     # e.g. "observed handoff of package #123 at T"
+string terms_hash    # keccak of the agreed condition / evidence, hex
+uint8 trust_level    # 0 local word | 1 on-chain checkable | 2 hardware attested
+---
+bool success
+string signature     # EIP-712 signature over terms_hash
+string error

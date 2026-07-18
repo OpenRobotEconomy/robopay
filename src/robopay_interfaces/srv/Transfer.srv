@@ -1,0 +1,8 @@
+string from_address
+string to_address
+string amount        # decimal string, e.g. "2.50" — never a float
+string asset         # "USDC"
+---
+bool success
+string tx_hash
+string error
