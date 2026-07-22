@@ -4,7 +4,7 @@
 lets robots send and receive **USDC** payments triggered by real-world
 conditions - settled peer-to-peer on Base.
 
-> No token. No custom chain. No lock-in.
+> Open-source. Free. MIT-Licensed.
 
 Part of the [Open Robot Economy](https://openroboteconomy.org).
 
