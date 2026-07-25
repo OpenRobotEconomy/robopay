@@ -1,7 +1,14 @@
-string statement     # e.g. "observed handoff of package #123 at T"
-string terms_hash    # keccak of the agreed condition / evidence, hex
-uint8 trust_level    # 0 local word | 1 on-chain checkable | 2 hardware attested
+# Produce the robot's cryptographic attestation that an agreed condition was
+# met. Its signed "yes" for an escrow release or a counterparty to verify.
+# The signature is EIP-712 over terms_hash, so an on-chain contract can check it.
+#
+# Both parties sign the SAME terms_hash, which is what proves they agree on the same deal.
+
+string statement         # human-readable description, e.g. "handoff of pkg 123 at T"
+string terms_hash        # keccak fingerprint of the agreed condition/evidence, the thing signed
+uint8  trust_level       # 0 word | 1 on-chain checkable | 2 hardware attested
 ---
-bool success
-string signature     # EIP-712 signature over terms_hash
+bool   success
+string signature         # EIP-712 signature over terms_hash
+string signer_address    # whose signature this is (for the verifier's convenience)
 string error

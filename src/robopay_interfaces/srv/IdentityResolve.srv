@@ -1,6 +1,9 @@
-string did           # a did:pkh or a raw address
+# Look up a peer by DID or address: get their address, DID, and advertised
+# metadata, so you can then address a payment or request to them.
+string query             # a did:pkh... OR a raw 0x... address
 ---
-bool success
-string address
-string metadata_json
+bool   success
+string address           # resolved wallet address
+string did               # resolved DID
+string metadata_json     # the peer's advertised services/metadata
 string error

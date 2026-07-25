@@ -1,15 +1,24 @@
-# goal
-string from_address
-string to_address
-string amount
-string asset
-string terms_hash    # what both parties sign to release
-uint8 trust_level
-float64 timeout_seconds
+# Open and manage a trustless escrow: lock the payer's USDC in the shared
+# RobopayEscrow contract, then RELEASE it to the payee when a valid proof
+# (signatures over terms_hash, per trust_level) arrives, or REFUND it to the
+# payer if the timeout passes first.
+#
+# GOAL: open the escrow
+string escrow_id         # caller-supplied unique id; prevents a retry double-locking funds
+string from_address      # payer : whose USDC is locked
+string to_address        # payee : who receives it on release
+string amount            # decimal string
+string asset             # "USDC"
+string terms_hash        # SAME fingerprint both parties sign (links to ProofSign)
+uint8  trust_level       # strength of proof required to release (0/1/2)
+float64 timeout_seconds  # auto-refund to payer if not released within this window
 ---
-# result
-bool released        # true = paid out, false = refunded
-string tx_hash
+# RESULT: how it ended
+bool   released          # true = paid to payee, false = refunded to payer
+string status            # "released" | "refunded_timeout" | "refunded_dispute" | "failed"
+string tx_hash           # on-chain receipt of the final release/refund
+string error             # reason on failure, empty otherwise
 ---
-# feedback
-string state         # "locked" | "awaiting_proof" | "proof_partial" | "releasing" | ...
+# FEEDBACK: streamed while it runs
+string state             # "opening"|"locked"|"awaiting_proof"|"proof_partial"|"releasing"|"timed_out"|"refunding"
+string detail            # human-readable nuance, e.g. "waiting on payee signature"

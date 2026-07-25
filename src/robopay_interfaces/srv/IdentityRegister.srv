@@ -1,6 +1,9 @@
-string address
-string metadata_json # services offered, docs url, price, etc.
+# Set up the robot's own identity and advertised metadata (services offered,
+# price, docs URL) so peers can discover it via IdentityResolve.
+# The DID is derived for free from the address (did:pkh)
+string address           # the wallet address this identity belongs to
+string metadata_json     # free-form JSON: services, pricing, docs
 ---
-bool success
-string did           # did:pkh:eip155:<chain>:<address>
+bool   success
+string did               # did:pkh:eip155:<chain>:<address>, derived from the address
 string error

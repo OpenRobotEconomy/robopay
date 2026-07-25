@@ -2,5 +2,5 @@ string address
 ---
 bool success
 string usdc          # decimal string
-string gas           # native gas-token balance, decimal string
-string error
+string gas           # native gas-token balance, decimal string. example: ETH on Base
+string error         # gives reason if error, empty if success

@@ -1,8 +1,12 @@
+# Send USDC (or another asset) from one wallet to another. The sender is
+# referenced by address; the node holds the key and signs internally.
 string from_address
 string to_address
-string amount        # decimal string, e.g. "2.50" — never a float
-string asset         # "USDC"
+string amount            # decimal string, e.g. "2.50" — NEVER a float
+string asset             # "USDC"
+string memo              # optional context, e.g. "charging session #42"
+string idempotency_key   # unique ID for this payment intent; makes retries safe
 ---
-bool success
-string tx_hash
-string error
+bool   success
+string tx_hash           # blockchain receipt/tracking ID (look up on basescan.org)
+string error             # reason on failure, empty on success

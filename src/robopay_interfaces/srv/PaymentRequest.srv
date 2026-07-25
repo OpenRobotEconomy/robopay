@@ -1,9 +1,15 @@
-# Robot-to-robot "402 Payment Required": a payee asks a payer to pay for a service.
-string payer_address
-string amount
-string asset
-string memo          # what the payment is for
+# One robot invoices another. A REQUEST NEVER MOVES MONEY BY ITSELF, it is a
+# proposal. The payer's own pre-authorized policy decides whether to honor it,
+# and unsolicited requests default to pending_approval, never auto-pay.
+string payer_address     # who is being asked to pay (the target of this request)
+string payee_address     # who would receive payment (filled in automatically by the requester)
+string amount            # decimal string
+string asset             # "USDC"
+string memo              # what the charge is for
+string settlement        # "direct" | "escrow" : how the payer should pay if it agrees
+string idempotency_key   # so a re-sent request isn't acted on twice
 ---
-bool accepted
-string tx_hash
-string error
+bool   accepted          # did the PAYER's policy agree to proceed?
+string status            # "paid" | "escrow_opened" | "pending_approval" | "rejected"
+string tx_hash           # present if paid or escrow opened
+string error             # reason when not accepted, empty otherwise

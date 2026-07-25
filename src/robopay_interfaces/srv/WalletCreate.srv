@@ -1,5 +1,6 @@
 string label
 ---
 bool success
-string address       # only the public address is returned over ROS
+string address      # only the public address is returned over ROS
+string label       
 string error
