@@ -9,7 +9,7 @@ string memo              # what the charge is for
 string settlement        # "direct" | "escrow" : how the payer should pay if it agrees
 string idempotency_key   # so a re-sent request isn't acted on twice
 ---
-bool   accepted          # did the PAYER's policy agree to proceed?
+bool   accepted          # did the payer's policy agree to proceed?
 string status            # "paid" | "escrow_opened" | "pending_approval" | "rejected"
 string tx_hash           # present if paid or escrow opened
 string error             # reason when not accepted, empty otherwise

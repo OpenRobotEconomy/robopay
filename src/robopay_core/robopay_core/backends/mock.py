@@ -1,9 +1,5 @@
 """Deterministic in-memory backend.
-
-Spends no real money and needs no chain, so the whole library can be built,
-tested, and demoed (turtlesim) with nothing but pytest. The self-custody and
-Circle backends implement the same interface for real.
-"""
+Spends no real money and needs no chain"""
 from .base import PaymentBackend
 
 

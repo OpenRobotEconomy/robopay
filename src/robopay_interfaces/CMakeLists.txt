@@ -13,6 +13,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/IdentityRegister.srv"
   "srv/IdentityResolve.srv"
   "srv/ProofSign.srv"
+  "srv/EscrowSign.srv"
+  "srv/EscrowSubmitSignature.srv"
   "action/Escrow.action"
   DEPENDENCIES action_msgs
 )

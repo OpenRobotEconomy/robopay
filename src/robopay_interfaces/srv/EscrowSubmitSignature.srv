@@ -1,0 +1,9 @@
+# Hand a signature (ours or a counterparty's) to the node, so a waiting
+# Escrow action can collect it. The signature may have arrived over any channel the developer chose.
+
+string escrow_id         # hex
+string role              # "payer" | "payee"
+string signature         # hex-encoded 65-byte signature
+---
+bool   accepted
+string error

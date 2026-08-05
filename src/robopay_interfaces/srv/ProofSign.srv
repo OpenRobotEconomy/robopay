@@ -1,8 +1,6 @@
 # Produce the robot's cryptographic attestation that an agreed condition was
 # met. Its signed "yes" for an escrow release or a counterparty to verify.
-# The signature is EIP-712 over terms_hash, so an on-chain contract can check it.
-#
-# Both parties sign the SAME terms_hash, which is what proves they agree on the same deal.
+# Both parties sign the same terms_hash, which is what proves they agree on the same deal.
 
 string statement         # human-readable description, e.g. "handoff of pkg 123 at T"
 string terms_hash        # keccak fingerprint of the agreed condition/evidence, the thing signed

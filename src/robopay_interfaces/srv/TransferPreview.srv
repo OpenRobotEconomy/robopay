@@ -1,5 +1,5 @@
-# Dry run a transfer: check (for free, no chain write) whether it WOULD
-# succeed : enough USDC, enough gas, valid destination. Sends no money.
+# Dry run a transfer: check whether it would
+# succeed : enough USDC, enough gas, valid destination(for free, no chain write). Sends no money.
 string from_address
 string to_address
 string amount            # decimal string
@@ -8,6 +8,5 @@ string asset             # "USDC"
 bool   ok                # true if the transfer would likely succeed
 string reason            # human-readable explanation when ok is false
 string usdc_balance      # sender's current USDC
-string gas_balance       # sender's current gas (ETH)
-string gas_estimate      # estimated gas this transfer would cost, so the caller
-                         # can compare requirement vs. balance
+string gas_balance       # sender's current gas
+string gas_estimate      # estimated gas this transfer would cost

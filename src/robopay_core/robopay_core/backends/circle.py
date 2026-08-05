@@ -1,7 +1,5 @@
-"""Circle settlement backend (implemented in Phase 8) — the opt-in managed path.
-
-Wraps Circle Developer-Controlled Wallets (MPC custody, gas abstraction). The
-Entity Secret comes from the environment, never from code or a ROS topic.
+"""Circle settlement backend
+Wraps Circle Developer-Controlled Wallets
 """
 from .base import PaymentBackend
 

@@ -1,8 +1,4 @@
-"""robopay command-line interface (Phase 0 skeleton).
-
-The onboarding commands (wallet / fund / init) are a v1 feature. This stub
-establishes the `robopay` entry point and the command surface; implementations
-land in later phases (typer + rich + qrcode).
+"""robopay command-line interface
 """
 import argparse
 

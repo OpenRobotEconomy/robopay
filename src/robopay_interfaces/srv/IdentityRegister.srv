@@ -1,6 +1,6 @@
 # Set up the robot's own identity and advertised metadata (services offered,
 # price, docs URL) so peers can discover it via IdentityResolve.
-# The DID is derived for free from the address (did:pkh)
+# The DID is derived for free from the address
 string address           # the wallet address this identity belongs to
 string metadata_json     # free-form JSON: services, pricing, docs
 ---

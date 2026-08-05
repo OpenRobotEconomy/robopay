@@ -79,8 +79,7 @@ pytest src/robopay_core/test
 ```
 
 ## Supported ROS 2 distros
-
-Primary: **Humble** (Ubuntu 22.04). CI also builds Jazzy and Lyrical.
+Humble (Ubuntu 22.04). CI also builds Jazzy and Lyrical.
 
 ## License
 

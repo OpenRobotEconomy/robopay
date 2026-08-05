@@ -1,8 +1,4 @@
-"""Custody abstraction (the WalletProvider seam).
-
-Implementations decide where keys live and who signs:
-SelfCustodyProvider (the default), and a Circle-backed provider (opt-in).
-Keys never cross ROS — only addresses do.
+"""Custody abstraction (WalletProvider seam).
 """
 from abc import ABC, abstractmethod
 

@@ -11,7 +11,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Wallet secrets - NEVER commit these
+# Wallet secrets
 *.key
 *.pem
 *-recovery-file.json

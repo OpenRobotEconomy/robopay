@@ -1,8 +1,6 @@
 """Settlement backend interface.
-
 An implementation targets one rail (self-custody via web3.py, Circle, or the
-in-memory mock used for tests). payment_node only ever talks to this interface,
-which is what keeps robopay chain-agnostic.
+in-memory mock used for tests).
 """
 from abc import ABC, abstractmethod
 

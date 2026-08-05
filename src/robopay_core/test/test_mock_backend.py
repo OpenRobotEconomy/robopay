@@ -1,4 +1,3 @@
-"""Pure-Python unit tests - run without ROS, the Phase-0 velocity unlock."""
 from robopay_core.backends.mock import MockBackend
 
 

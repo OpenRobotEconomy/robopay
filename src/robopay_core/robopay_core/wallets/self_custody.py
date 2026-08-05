@@ -1,22 +1,33 @@
-"""Self-custody wallet provider — robopay's DEFAULT real backend.
-
-The robot holds its own key locally, fully peer-to-peer, no account needed.
-This Phase-0 stub returns a placeholder address; Phase 2 replaces it with real
-secp256k1 keygen (eth-account), an encrypted-at-rest registry, and web3.py
-signing against a public Base RPC.
-"""
-import secrets
+"""Self-custody wallet provider. robopay's default backend"""
+from eth_account import Account
 
 from .base import WalletProvider
+from .registry import WalletRegistry
 
 
 class SelfCustodyProvider(WalletProvider):
-    def __init__(self) -> None:
-        self._address: str | None = None
+    def __init__(self, registry: WalletRegistry | None = None) -> None:
+        self._account = None
+        self._registry = registry or WalletRegistry()
 
-    def create(self, label: str = "robot") -> str:
-        self._address = "0x" + secrets.token_hex(20)  # placeholder — Phase 2 = real keygen
-        return self._address
+    def create(self, label: str = "robot", passphrase: str = "") -> str:
+        self._account = Account.create()
+        self._registry.save(
+            self._account.address, "0x" + self._account.key.hex(),
+            passphrase, label,
+        )
+        return self._account.address
+
+    def load(self, address: str, passphrase: str) -> str:
+        """Load a previously-saved wallet back into memory."""
+        pk = self._registry.load_private_key(address, passphrase)
+        self._account = Account.from_key(pk)
+        return self._account.address
 
     def address(self) -> str:
-        return self._address or ""
+        return self._account.address if self._account else ""
+
+    def private_key(self) -> str:
+        if not self._account:
+            raise RuntimeError("No wallet - call create() or load() first.")
+        return "0x" + self._account.key.hex()
