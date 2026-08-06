@@ -16,7 +16,7 @@ jobs:
             experimental: false
           - ros_distro: jazzy
             experimental: false
-          - ros_distro: lyrical      # newest LTS; image may lag — non-blocking for now
+          - ros_distro: lyrical      
             experimental: true
     container: ros:${{ matrix.ros_distro }}
     steps:
@@ -26,7 +26,11 @@ jobs:
         run: |
           apt-get update
           rosdep update
-          rosdep install --from-paths src --ignore-src -y || true
+          rosdep install --from-paths src --ignore-src -y
+
+      - name: Install Python dependencies
+        run: |
+          pip3 install web3 eth-account cryptography python-dotenv
 
       - name: Build
         shell: bash
@@ -38,5 +42,7 @@ jobs:
         shell: bash
         run: |
           source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          colcon test
-          colcon test-result --verbose
+          colcon test --event-handlers console_direct+ --return-code-on-test-failure
+          colcon test-result --verbose --all
+
+
