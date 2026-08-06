@@ -25,12 +25,15 @@ jobs:
       - name: Resolve dependencies
         run: |
           apt-get update
-          apt-get install -y python3-pip
-          pip3 install web3 eth-account cryptography python-dotenv
+          rosdep update
+          rosdep install --from-paths src --ignore-src -y || true
 
       - name: Install Python dependencies
         run: |
-          pip3 install web3 eth-account cryptography python-dotenv
+          apt-get update
+          apt-get install -y python3-pip
+          pip3 install --break-system-packages web3 eth-account cryptography python-dotenv \
+            || pip3 install web3 eth-account cryptography python-dotenv
 
       - name: Build
         shell: bash
