@@ -25,8 +25,8 @@ jobs:
       - name: Resolve dependencies
         run: |
           apt-get update
-          rosdep update
-          rosdep install --from-paths src --ignore-src -y
+          apt-get install -y python3-pip
+          pip3 install web3 eth-account cryptography python-dotenv
 
       - name: Install Python dependencies
         run: |
