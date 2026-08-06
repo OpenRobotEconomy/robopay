@@ -1,5 +1,9 @@
 from robopay_core.chain_client import ChainClient
 
+from conftest import requires_network
+
+pytestmark = requires_network
+
 EMPTY = "0x000000000000000000000000000000000000dEaD"
 
 

@@ -2,6 +2,10 @@ from robopay_core.chain_client import ChainClient
 from robopay_core.chains import CHAINS, token_address
 from robopay_core.escrow_client import EscrowClient
 
+from conftest import requires_network
+
+pytestmark = requires_network
+
 
 def _client():
     return EscrowClient(ChainClient("base-sepolia"), "base-sepolia")

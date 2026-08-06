@@ -1,6 +1,9 @@
 import pytest
 
 from robopay_core.chain_client import ChainClient
+from conftest import requires_network
+
+pytestmark = requires_network
 
 
 def test_connects():
