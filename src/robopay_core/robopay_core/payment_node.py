@@ -29,48 +29,72 @@ from robopay_interfaces.action import Escrow
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
+from robopay_interfaces.msg import EscrowSignature
+
 
 class PaymentNode(Node):
     def __init__(self) -> None:
         super().__init__("payment_node")
 
-        self.declare_parameter("backend", "self_custody")          # "mock" | "self_custody"
+        self.declare_parameter("backend", "self_custody")
         self.declare_parameter("chain", "base-sepolia")
         self.declare_parameter("passphrase", "")
+        self.declare_parameter("signature_exchange", "topic")   # topic | manual
         backend_name = self.get_parameter("backend").value
         chain = self.get_parameter("chain").value
         self._passphrase = self.get_parameter("passphrase").value
+        self._sig_exchange = self.get_parameter("signature_exchange").value
+        self._backend_name = backend_name
 
         self.wallet = SelfCustodyProvider()
+        self.signatures = SignatureStore()
+        self.escrow_backend = None
+        self.resolver = None
+        self._sig_pub = None
 
         if backend_name == "self_custody":
             self.backend = SelfCustodyBackend(chain)
-            self.resolver = PaymentResolver(self.backend)
+            self.escrow_backend = EscrowBackend(chain, nonce_manager=self.backend.nonces)
+
+            def _key_for(address: str) -> str:
+                try:
+                    self.wallet.load(address, self._passphrase)
+                    return self.wallet.private_key()
+                except Exception:
+                    return ""
+
+            self.resolver = PaymentResolver(self.backend, self.escrow_backend,
+                                            key_provider=_key_for)
             self.resolver.start()
             self.get_logger().info(
                 f"payment_node up (self_custody, {chain}, resolver running)")
         else:
             self.backend = MockBackend()
-            self.resolver = None
             self.get_logger().info("payment_node up (mock backend)")
-        self._backend_name = backend_name
 
         self.create_service(WalletCreate, "wallet/create", self._on_wallet_create)
         self.create_service(WalletBalance, "wallet/balance", self._on_wallet_balance)
         self.create_service(Transfer, "transfer/send", self._on_transfer)
 
-        self.signatures = SignatureStore()
-        self.escrow_backend = None
         if backend_name == "self_custody":
-            self.escrow_backend = EscrowBackend(chain)
             self.create_service(EscrowSign, "escrow/sign", self._on_escrow_sign)
             self.create_service(EscrowSubmitSignature, "escrow/submit_signature",
                                 self._on_submit_signature)
-            self.get_logger().info("escrow services ready")
             self._escrow_cb_group = ReentrantCallbackGroup()
             self._escrow_action = ActionServer(
                 self, Escrow, "escrow", self._execute_escrow,
                 callback_group=self._escrow_cb_group)
+            self.get_logger().info("escrow services ready")
+
+            if self._sig_exchange == "topic":
+                self._sig_pub = self.create_publisher(
+                    EscrowSignature, "escrow/signatures", 10)
+                self.create_subscription(
+                    EscrowSignature, "escrow/signatures",
+                    self._on_signature_msg, 10)
+                self.get_logger().info("signature exchange: topic")
+            else:
+                self.get_logger().info("signature exchange: manual (services only)")
 
 
     def _on_wallet_create(self, request, response):
@@ -120,7 +144,6 @@ class PaymentNode(Node):
         return response
 
     def _on_escrow_sign(self, request, response):
-        """Produce our signature for an escrow (local, free)."""
         try:
             eid = bytes.fromhex(request.escrow_id.removeprefix("0x"))
             if len(eid) != 32:
@@ -132,13 +155,20 @@ class PaymentNode(Node):
             response.signature = "0x" + sig.hex()
             response.signer = addr
             response.error = ""
+
+            if self._sig_pub is not None:
+                out = EscrowSignature()
+                out.escrow_id = request.escrow_id
+                out.role = request.role
+                out.signature = response.signature
+                out.signer = addr
+                self._sig_pub.publish(out)
         except Exception as e:
             response.success = False
             response.error = str(e)
         return response
 
     def _on_submit_signature(self, request, response):
-        """Accept a signature from any transport into the store."""
         try:
             eid = bytes.fromhex(request.escrow_id.removeprefix("0x"))
             if len(eid) != 32:
@@ -157,7 +187,6 @@ class PaymentNode(Node):
         return response
 
     def _execute_escrow(self, goal_handle):
-        """Run one escrow: open, wait for both signatures, then release or refund."""
         goal = goal_handle.request
         result = Escrow.Result()
         feedback = Escrow.Feedback()
@@ -166,10 +195,8 @@ class PaymentNode(Node):
             feedback.state = state
             feedback.detail = detail
             goal_handle.publish_feedback(feedback)
-            self.get_logger().info(f"escrow: {state} {detail}")
 
         try:
-            # ---- open ----
             report("opening")
             self.wallet.load(goal.from_address, self._passphrase)
             pk = self.wallet.private_key()
@@ -189,7 +216,6 @@ class PaymentNode(Node):
             deadline = opened["deadline"]
             report("locked", f"id=0x{eid.hex()} amount={goal.amount}")
 
-            # ---- wait for both signatures, or the deadline ----
             report("awaiting_proof")
             announced_partial = False
             while True:
@@ -236,6 +262,28 @@ class PaymentNode(Node):
             result.status = "failed"
             result.error = str(e)
             return result
+
+
+    def _on_signature_msg(self, msg: EscrowSignature) -> None:
+        try:
+            eid = bytes.fromhex(msg.escrow_id.removeprefix("0x"))
+            if len(eid) != 32:
+                return                                    # malformed — ignore
+            if msg.role not in ("payer", "payee"):
+                return
+            sig = bytes.fromhex(msg.signature.removeprefix("0x"))
+            if len(sig) != 65:
+                return
+
+            # ignore signatures for escrows we already have that role for
+            if msg.role in self.signatures.get(eid):
+                return
+
+            self.signatures.add(eid, msg.role, sig)
+            self.get_logger().info(
+                f"signature received via topic: {msg.role} for 0x{eid.hex()[:16]}...")
+        except Exception as e:
+            self.get_logger().warn(f"ignoring malformed signature message: {e}")
 
 
 def main() -> None:

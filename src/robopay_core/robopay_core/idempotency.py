@@ -11,7 +11,7 @@ class IdempotencyStore:
     def __init__(self, path: Path | None = None) -> None:
         self.path = Path(path) if path else DEFAULT_PATH
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self.path))
+        self._conn = sqlite3.connect(str(self.path), check_same_thread=False, timeout=5.0)
         self._conn.execute("""
             CREATE TABLE IF NOT EXISTS payments (
                 key         TEXT PRIMARY KEY,

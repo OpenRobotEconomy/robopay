@@ -1,7 +1,9 @@
 # Produce this robot's EIP-712 signature authorizing release of an escrow.
-# Local and free — no chain write, no gas.
+# Local and free. no chain write, no gas.
+
 string escrow_id         # hex, e.g. "0x9f8b27..."
-string signer_address    # which of our wallets signs
+string signer_address    # which wallet signs
+string role             # "payer" | "payee"
 ---
 bool   success
 string signature         # hex-encoded 65-byte signature

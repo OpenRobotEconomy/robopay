@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/EscrowSign.srv"
   "srv/EscrowSubmitSignature.srv"
   "action/Escrow.action"
+  "msg/EscrowSignature.msg"
   DEPENDENCIES action_msgs
 )
 

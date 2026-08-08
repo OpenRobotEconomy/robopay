@@ -13,6 +13,8 @@ from ..escrow_client import EscrowClient
 from ..nonce_manager import NonceManager
 from ..escrow_signing import sign_release as _sign_release
 
+from ..escrow_tracker import EscrowTracker
+
 
 DEFAULT_APPROVAL = 1_000_000_000
 GAS_LIMIT_APPROVE = 100_000
@@ -22,12 +24,13 @@ GAS_LIMIT_REFUND = 150_000
 
 
 class EscrowBackend:
-    def __init__(self, chain: str = "base-sepolia") -> None:
+    def __init__(self, chain="base-sepolia", nonce_manager=None):
         self.chain = chain
         self.client = ChainClient(chain)
         self.w3 = self.client.w3
         self.escrow = EscrowClient(self.client, chain)
-        self.nonces = NonceManager(self.w3)
+        self.nonces = nonce_manager or NonceManager(self.w3)
+        self.tracker = EscrowTracker()
 
 
     def _token(self, asset: str = "USDC"):
@@ -37,12 +40,23 @@ class EscrowBackend:
         )
 
     def _send(self, tx: dict, private_key: str):
-        signed = Account.sign_transaction(tx, private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+        try:
+            signed = Account.sign_transaction(tx, private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+        except Exception as e:
+            if "nonce too low" not in str(e).lower():
+                raise
+            sender = tx["from"]
+            new_nonce = self.nonces.resync(sender)
+            tx = dict(tx, nonce=new_nonce)
+            signed = Account.sign_transaction(tx, private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
+
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
         if receipt["status"] != 1:
             raise RuntimeError(f"transaction reverted: {tx_hash.hex()}")
         return receipt
+
 
     def _ensure_approval(self, owner: str, amount: int, private_key: str,
                          asset: str = "USDC") -> None:
@@ -96,6 +110,8 @@ class EscrowBackend:
             raise RuntimeError("open succeeded but no Opened event found")
         args = events[0]["args"]
 
+        self.tracker.track(args["id"], args["payer"], args["deadline"])
+
         return {
             "escrow_id": args["id"],
             "payer": args["payer"],
@@ -137,6 +153,7 @@ class EscrowBackend:
         if not events:
             raise RuntimeError("release succeeded but no Released event found")
         args = events[0]["args"]
+        self.tracker.mark_resolved(escrow_id)
         return {
             "escrow_id": args["id"],
             "payee": args["payee"],
@@ -162,6 +179,9 @@ class EscrowBackend:
         if not events:
             raise RuntimeError("refund succeeded but no Refunded event found")
         args = events[0]["args"]
+
+        self.tracker.mark_resolved(escrow_id)
+
         return {
             "escrow_id": args["id"],
             "payer": args["payer"],

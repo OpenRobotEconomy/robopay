@@ -1,9 +1,4 @@
 """In-memory store of escrow release signatures, keyed by escrow id.
-
-Signatures arrive asynchronously (via the submit_signature service, or the
-topic layer in 4.4B) while an Escrow action waits for them. This decouples the
-two: submitters write here, the waiting action polls here. Signatures that
-arrive BEFORE the action starts waiting are still captured.
 """
 import threading
 
