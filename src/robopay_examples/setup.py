@@ -21,5 +21,7 @@ setup(
     description="Runnable examples and the turtlesim demo for robopay.",
     license="MIT",
     tests_require=["pytest"],
-    entry_points={"console_scripts": []},
+    entry_points={"console_scripts": [
+        "pay_on_condition = robopay_examples.pay_on_condition:main"
+    ]},
 )
