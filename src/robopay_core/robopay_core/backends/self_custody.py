@@ -12,17 +12,22 @@ from .base import PaymentBackend
 
 from ..nonce_manager import NonceManager
 
+import logging
+logger = logging.getLogger("robopay.backend")
+
 
 
 
 class SelfCustodyBackend(PaymentBackend):
     def __init__(self, chain: str = "base-sepolia",
-                 store: IdempotencyStore | None = None) -> None:
+                 store: IdempotencyStore | None = None,
+                 limits=None) -> None:
         self.client = ChainClient(chain)
         self.w3 = self.client.w3
         self.chain = chain
         self.store = store or IdempotencyStore()
         self.nonces = NonceManager(self.w3)
+        self.limits = limits
 
     def balance(self, address: str) -> dict:
         return {
@@ -68,6 +73,9 @@ class SelfCustodyBackend(PaymentBackend):
                     return resolved
                 reuse_nonce = record["nonce"]
 
+        if self.limits is not None:
+            self.limits.check(amount)
+
         self.store.mark_pending(idempotency_key, request)
 
         sender = Web3.to_checksum_address(from_address)
@@ -94,6 +102,8 @@ class SelfCustodyBackend(PaymentBackend):
             tx_hash_hex = tx_hash.hex()
 
             self.store.mark_broadcast(idempotency_key, tx_hash_hex, nonce)
+            if self.limits is not None:
+                self.limits.record(amount)
             return {"success": True, "status": "broadcast",
                     "tx_hash": tx_hash_hex, "error": ""}
 
@@ -101,8 +111,10 @@ class SelfCustodyBackend(PaymentBackend):
             if nonce is not None and reuse_nonce is None:
                 try:
                     self.nonces.resync(sender)
-                except Exception:
-                    pass
+                except Exception as resync_error:
+                    logger.warning(
+                        "nonce resync failed after a broadcast error - the local "
+                        "counter may be out of sync with the chain: %s", resync_error)
             self.store.mark_final(idempotency_key, "failed",
                                   {"success": False, "tx_hash": "", "error": str(e)})
             return {"success": False, "status": "failed", "tx_hash": "", "error": str(e)}

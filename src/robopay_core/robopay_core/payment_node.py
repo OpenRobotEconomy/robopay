@@ -31,6 +31,12 @@ from rclpy.executors import MultiThreadedExecutor
 
 from robopay_interfaces.msg import EscrowSignature
 
+from robopay_core.secrets import PassphraseUnavailable, get_passphrase
+
+from robopay_core.spending_limits import SpendingLimitExceeded, SpendingLimits
+
+import logging
+
 
 class PaymentNode(Node):
     def __init__(self) -> None:
@@ -38,23 +44,59 @@ class PaymentNode(Node):
 
         self.declare_parameter("backend", "self_custody")
         self.declare_parameter("chain", "base-sepolia")
-        self.declare_parameter("passphrase", "")
         self.declare_parameter("signature_exchange", "topic")   # topic | manual
         backend_name = self.get_parameter("backend").value
         chain = self.get_parameter("chain").value
-        self._passphrase = self.get_parameter("passphrase").value
         self._sig_exchange = self.get_parameter("signature_exchange").value
-        self._backend_name = backend_name
 
-        self.wallet = SelfCustodyProvider()
+        self.declare_parameter("max_per_transaction", "10")
+        self.declare_parameter("max_per_window", "50")
+        self.declare_parameter("window_seconds", 3600.0)
+
+        from robopay_core.spending_limits import SpendingLimits
+        limits = SpendingLimits(
+            max_per_transaction=self.get_parameter("max_per_transaction").value,
+            max_per_window=self.get_parameter("max_per_window").value,
+            window_seconds=self.get_parameter("window_seconds").value,
+        )
+        self.wallet = SelfCustodyProvider(limits=limits)
+
+        self.get_logger().info(
+                f"spending caps: {limits.max_per_transaction} per tx, "
+                f"{limits.max_per_window} per {int(limits.window_seconds)}s")
+
+        self._backend_name = backend_name
+        try:
+            self._passphrase = get_passphrase()
+        except PassphraseUnavailable as e:
+            self._passphrase = ""
+            self.get_logger().warn(
+                f"wallet locked - signing operations will fail. {e}")
+
         self.signatures = SignatureStore()
         self.escrow_backend = None
         self.resolver = None
         self._sig_pub = None
 
         if backend_name == "self_custody":
-            self.backend = SelfCustodyBackend(chain)
-            self.escrow_backend = EscrowBackend(chain, nonce_manager=self.backend.nonces)
+            wallets = self.wallet._registry.list_wallets()
+            if not wallets:
+                self.get_logger().warn(
+                    "no wallets found - create one with `robopay wallet create`")
+            elif not self._passphrase:
+                self.get_logger().warn(
+                    "LOCKED: no passphrase - reads work, signing will fail")
+            elif not self.wallet.verify_passphrase(self._passphrase):
+                self.get_logger().error(
+                    "LOCKED: passphrase does not unlock any stored wallet. "
+                    "Balances and reads work; transfers and escrow will fail.")
+            else:
+                self.get_logger().info("wallet unlocked")
+
+            self.backend = SelfCustodyBackend(chain, limits=self.wallet.limits)
+            self.escrow_backend = EscrowBackend(chain,
+                                                nonce_manager=self.backend.nonces,
+                                                limits=self.wallet.limits)
 
             def _key_for(address: str) -> str:
                 try:
@@ -128,7 +170,6 @@ class PaymentNode(Node):
             if self._backend_name == "self_custody":
                 self.wallet.load(request.from_address, self._passphrase)
                 kwargs["private_key"] = self.wallet.private_key()
-                # generate a key if the caller didn't supply one
                 key = request.idempotency_key or f"auto-{uuid.uuid4()}"
                 kwargs["idempotency_key"] = key
             result = self.backend.transfer(
@@ -138,7 +179,18 @@ class PaymentNode(Node):
             response.success = result["success"]
             response.tx_hash = result["tx_hash"]
             response.error = result["error"]
+        except SpendingLimitExceeded as e:
+            lim = self.wallet.limits
+            self.get_logger().warn(
+                f"BLOCKED by spending cap: {e} | "
+                f"caps: {lim.max_per_transaction}/tx, "
+                f"{lim.max_per_window} per {int(lim.window_seconds)}s "
+                f"({lim.spent_in_window()} spent). "
+                f"Raise with -p max_per_transaction / -p max_per_window.")
+            response.success = False
+            response.error = str(e)
         except Exception as e:
+            self.get_logger().error(f"transfer failed: {e}")
             response.success = False
             response.error = str(e)
         return response
@@ -287,6 +339,10 @@ class PaymentNode(Node):
 
 
 def main() -> None:
+
+    logging.basicConfig(level=logging.INFO,
+                        format="[%(name)s] %(levelname)s: %(message)s")
+
     rclpy.init()
     node = PaymentNode()
     executor = MultiThreadedExecutor(num_threads=4)

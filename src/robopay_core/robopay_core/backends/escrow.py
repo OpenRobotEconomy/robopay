@@ -24,13 +24,18 @@ GAS_LIMIT_REFUND = 150_000
 
 
 class EscrowBackend:
-    def __init__(self, chain="base-sepolia", nonce_manager=None):
+    def __init__(self, chain="base-sepolia", nonce_manager=None, limits=None):
         self.chain = chain
         self.client = ChainClient(chain)
         self.w3 = self.client.w3
         self.escrow = EscrowClient(self.client, chain)
-        self.nonces = nonce_manager or NonceManager(self.w3)
+        if nonce_manager is None:
+            raise ValueError(
+                "EscrowBackend requires a nonce_manager shared with the transfer "
+                "backend. Two managers for one wallet hand out colliding nonces.")
+        self.nonces = nonce_manager
         self.tracker = EscrowTracker()
+        self.limits = limits
 
 
     def _token(self, asset: str = "USDC"):
@@ -87,6 +92,9 @@ class EscrowBackend:
         raw_amount = int(round(float(amount) * (10 ** decimals)))
         deadline = int(time.time() + timeout_seconds)
 
+        if self.limits is not None:
+            self.limits.check(amount)
+
         self._ensure_approval(payer, raw_amount, private_key, asset)
 
         tx = self.escrow.contract.functions.open(
@@ -109,6 +117,9 @@ class EscrowBackend:
         if not events:
             raise RuntimeError("open succeeded but no Opened event found")
         args = events[0]["args"]
+
+        if self.limits is not None:
+            self.limits.record(amount)
 
         self.tracker.track(args["id"], args["payer"], args["deadline"])
 

@@ -3,12 +3,15 @@ from eth_account import Account
 
 from .base import WalletProvider
 from .registry import WalletRegistry
+from ..spending_limits import SpendingLimits
 
 
 class SelfCustodyProvider(WalletProvider):
-    def __init__(self, registry: WalletRegistry | None = None) -> None:
+    def __init__(self, registry: WalletRegistry | None = None,
+                 limits: SpendingLimits | None = None) -> None:
         self._account = None
         self._registry = registry or WalletRegistry()
+        self.limits = limits or SpendingLimits()
 
     def create(self, label: str = "robot", passphrase: str = "") -> str:
         self._account = Account.create()
@@ -31,3 +34,12 @@ class SelfCustodyProvider(WalletProvider):
         if not self._account:
             raise RuntimeError("No wallet - call create() or load() first.")
         return "0x" + self._account.key.hex()
+
+    def verify_passphrase(self, passphrase: str) -> bool:
+        for w in self._registry.list_wallets():
+            try:
+                self._registry.load_private_key(w["address"], passphrase)
+                return True
+            except Exception:
+                continue
+        return False

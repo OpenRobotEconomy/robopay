@@ -23,8 +23,8 @@ class PaymentResolver:
                 result = self._backend.check_status(record["key"])
                 if result["status"] in ("confirmed", "failed"):
                     resolved += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("could not resolve payment %s: %s", record["key"], e)
         return resolved
 
     def start(self) -> None:
@@ -40,17 +40,17 @@ class PaymentResolver:
             self._thread.join(timeout=2)
 
     def _loop(self) -> None:
-        print("[resolver] loop started", flush=True)
+        logger.info("resolver loop started")
         while not self._stop.wait(self._interval):
             try:
                 self.resolve_once()
             except Exception as e:
-                print(f"[resolver] resolve_once failed: {e}", flush=True)
+                logger.warning("resolve_once failed: %s", e)
             try:
                 if self._escrow is not None:
                     self.refund_expired_escrows()
             except Exception as e:
-                print(f"[resolver] escrow sweep failed: {e}", flush=True)
+                logger.warning("escrow sweep failed: %s", e)
 
     def refund_expired_escrows(self) -> int:
         if self._escrow is None or self._key_provider is None:
@@ -71,5 +71,5 @@ class PaymentResolver:
                 refunded += 1
                 logger.info("auto-refunded expired escrow 0x%s", eid.hex()[:16])
             except Exception as e:
-                logger.warning("resolve_once failed: %s", e)
+                logger.warning("could not refund escrow 0x%s: %s", eid.hex()[:16], e)
         return refunded
