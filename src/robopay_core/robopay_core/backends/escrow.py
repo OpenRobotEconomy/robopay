@@ -24,16 +24,12 @@ GAS_LIMIT_REFUND = 150_000
 
 
 class EscrowBackend:
-    def __init__(self, chain="base-sepolia", nonce_manager=None, limits=None):
+    def __init__(self, chain="base-sepolia", nonces=None, limits=None):
         self.chain = chain
         self.client = ChainClient(chain)
         self.w3 = self.client.w3
         self.escrow = EscrowClient(self.client, chain)
-        if nonce_manager is None:
-            raise ValueError(
-                "EscrowBackend requires a nonce_manager shared with the transfer "
-                "backend. Two managers for one wallet hand out colliding nonces.")
-        self.nonces = nonce_manager
+        self.nonces = nonces or NonceManager(self.w3)
         self.tracker = EscrowTracker()
         self.limits = limits
 
@@ -83,7 +79,8 @@ class EscrowBackend:
 
     def open_escrow(self, payer: str, payee: str, amount: str,
                     terms_hash: bytes, timeout_seconds: float,
-                    private_key: str, asset: str = "USDC") -> dict:
+                    private_key: str, asset: str = "USDC",
+                    idempotency_key: str = "") -> dict:
 
         payer = Web3.to_checksum_address(payer)
         payee = Web3.to_checksum_address(payee)
@@ -91,6 +88,24 @@ class EscrowBackend:
         decimals = token.functions.decimals().call()
         raw_amount = int(round(float(amount) * (10 ** decimals)))
         deadline = int(time.time() + timeout_seconds)
+
+        if idempotency_key:
+            contract_nonce = int.from_bytes(
+                Web3.keccak(text=idempotency_key)[:8], "big")
+        else:
+            contract_nonce = int(time.time() * 1000)
+
+        expected_id = self.compute_escrow_id(
+            payer, payee, token.address, raw_amount, deadline,
+            terms_hash, contract_nonce)
+
+        existing = self.escrow.get_escrow(expected_id)
+        if existing["state"] != "none":
+            self.tracker.track(expected_id, existing["payer"], existing["deadline"])
+            return {"escrow_id": expected_id, "payer": existing["payer"],
+                    "payee": existing["payee"], "token": existing["token"],
+                    "amount": existing["amount"], "deadline": existing["deadline"],
+                    "terms": existing["terms"], "tx_hash": "", "already": True}
 
         if self.limits is not None:
             self.limits.check(amount)
@@ -103,7 +118,7 @@ class EscrowBackend:
             raw_amount,
             deadline,
             terms_hash,
-            int(time.time() * 1000),
+            contract_nonce,
         ).build_transaction({
             "from": payer,
             "nonce": self.nonces.next_nonce(payer),
@@ -148,6 +163,17 @@ class EscrowBackend:
     def release_escrow(self, escrow_id: bytes, payer_sig: bytes,
                        payee_sig: bytes, sender: str,
                        private_key: str) -> dict:
+
+
+        state = self.escrow.get_escrow_confirmed(escrow_id)
+        if state["state"] == "released":
+            self.tracker.mark_resolved(escrow_id)
+            return {"escrow_id": escrow_id, "payee": state["payee"],
+                    "amount": state["amount"], "tx_hash": "",
+                    "released": True, "already": True}
+        if state["state"] != "locked":
+            raise RuntimeError(
+                f"cannot release: escrow is {state['state']}, not locked")
         sender = Web3.to_checksum_address(sender)
         tx = self.escrow.contract.functions.release(
             escrow_id, payer_sig, payee_sig
@@ -176,6 +202,17 @@ class EscrowBackend:
 
     def refund_escrow(self, escrow_id: bytes, sender: str,
                       private_key: str) -> dict:
+
+        state = self.escrow.get_escrow_confirmed(escrow_id)
+        if state["state"] == "refunded":
+            self.tracker.mark_resolved(escrow_id)
+            return {"escrow_id": escrow_id, "payer": state["payer"],
+                    "amount": state["amount"], "tx_hash": "",
+                    "released": False, "already": True}
+        if state["state"] != "locked":
+            raise RuntimeError(
+                f"cannot refund: escrow is {state['state']}, not locked")
+
         sender = Web3.to_checksum_address(sender)
         tx = self.escrow.contract.functions.refund(escrow_id).build_transaction({
             "from": sender,
@@ -200,3 +237,17 @@ class EscrowBackend:
             "tx_hash": receipt["transactionHash"].hex(),
             "released": False,
         }
+
+    def compute_escrow_id(self, payer: str, payee: str, token: str,
+                        raw_amount: int, deadline: int, terms: bytes,
+                        nonce: int) -> bytes:
+        from eth_abi import encode
+        packed = encode(
+            ["uint256", "address", "address", "address", "address",
+                "uint256", "uint256", "bytes32", "uint256"],
+            [self.client.chain_id(), self.escrow.address,
+                Web3.to_checksum_address(payer), Web3.to_checksum_address(payee),
+                Web3.to_checksum_address(token), raw_amount, deadline,
+                terms, nonce],
+        )
+        return Web3.keccak(packed)

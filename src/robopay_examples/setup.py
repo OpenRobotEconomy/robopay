@@ -22,6 +22,7 @@ setup(
     license="MIT",
     tests_require=["pytest"],
     entry_points={"console_scripts": [
-        "pay_on_condition = robopay_examples.pay_on_condition:main"
+        "pay_on_condition = robopay_examples.pay_on_condition:main",
+        "escrow_on_delivery = robopay_examples.escrow_on_delivery:main",
     ]},
 )

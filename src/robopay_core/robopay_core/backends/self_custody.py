@@ -11,6 +11,7 @@ from ..idempotency import IdempotencyStore
 from .base import PaymentBackend
 
 from ..nonce_manager import NonceManager
+from decimal import Decimal
 
 import logging
 logger = logging.getLogger("robopay.backend")
@@ -20,13 +21,13 @@ logger = logging.getLogger("robopay.backend")
 
 class SelfCustodyBackend(PaymentBackend):
     def __init__(self, chain: str = "base-sepolia",
-                 store: IdempotencyStore | None = None,
-                 limits=None) -> None:
+                store: IdempotencyStore | None = None,
+                limits=None, nonces=None) -> None:
         self.client = ChainClient(chain)
         self.w3 = self.client.w3
         self.chain = chain
         self.store = store or IdempotencyStore()
-        self.nonces = NonceManager(self.w3)
+        self.nonces = nonces or NonceManager(self.w3)
         self.limits = limits
 
     def balance(self, address: str) -> dict:
@@ -39,7 +40,7 @@ class SelfCustodyBackend(PaymentBackend):
         try:
             return self.w3.eth.get_transaction_receipt(tx_hash)
         except Exception:
-            return None   # chain doesn't know this hash (not mined / dropped)
+            return None
 
     def _reconcile_broadcast(self, key: str, record: dict) -> dict | None:
         receipt = self._lookup_receipt(record["tx_hash"])
@@ -133,3 +134,62 @@ class SelfCustodyBackend(PaymentBackend):
                         "result": resolved}
             return {"status": "broadcast", "tx_hash": record["tx_hash"]}
         return {"status": record["status"]}
+
+
+
+    def preview_transfer(self, from_address: str, to_address: str,
+                         amount: str, asset: str = "USDC") -> dict:
+        try:
+            sender = Web3.to_checksum_address(from_address)
+        except Exception:
+            return {"ok": False, "reason": f"invalid sender address: {from_address}",
+                    "usdc_balance": "0", "gas_balance": "0", "gas_estimate": "0"}
+        try:
+            recipient = Web3.to_checksum_address(to_address)
+        except Exception:
+            return {"ok": False, "reason": f"invalid recipient address: {to_address}",
+                    "usdc_balance": "0", "gas_balance": "0", "gas_estimate": "0"}
+
+        usdc = self.client.token_balance(sender, asset)
+        gas_bal = self.client.native_balance(sender)
+
+        gas_estimate = "0"
+        try:
+            token = self.w3.eth.contract(
+                address=Web3.to_checksum_address(token_address(self.chain, asset)),
+                abi=ERC20_ABI,
+            )
+            decimals = token.functions.decimals().call()
+            raw_amount = int(round(float(amount) * (10 ** decimals)))
+            units = token.functions.transfer(recipient, raw_amount).estimate_gas(
+                {"from": sender})
+            price = self.w3.eth.gas_price
+            gas_estimate = str(self.w3.from_wei(units * price, "ether"))
+        except Exception as e:
+            return {"ok": False, "reason": f"would revert: {e}",
+                    "usdc_balance": usdc, "gas_balance": gas_bal,
+                    "gas_estimate": "0"}
+
+        if Decimal(usdc) < Decimal(str(amount)):
+            return {"ok": False,
+                    "reason": f"insufficient {asset}: have {usdc}, need {amount}",
+                    "usdc_balance": usdc, "gas_balance": gas_bal,
+                    "gas_estimate": gas_estimate}
+
+        if Decimal(gas_bal) < Decimal(gas_estimate):
+            return {"ok": False,
+                    "reason": (f"insufficient gas: have {gas_bal} ETH, "
+                               f"need about {gas_estimate} ETH"),
+                    "usdc_balance": usdc, "gas_balance": gas_bal,
+                    "gas_estimate": gas_estimate}
+
+        if self.limits is not None:
+            try:
+                self.limits.check(amount)
+            except Exception as e:
+                return {"ok": False, "reason": f"spending cap: {e}",
+                        "usdc_balance": usdc, "gas_balance": gas_bal,
+                        "gas_estimate": gas_estimate}
+
+        return {"ok": True, "reason": "", "usdc_balance": usdc,
+                "gas_balance": gas_bal, "gas_estimate": gas_estimate}

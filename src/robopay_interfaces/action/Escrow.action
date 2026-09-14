@@ -15,10 +15,12 @@ float64 timeout_seconds  # auto-refund to payer if not released within this wind
 ---
 # RESULT
 bool   released          # true = paid to payee, false = refunded to payer
+string escrow_id
 string status            # "released" | "refunded_timeout" | "refunded_dispute" | "failed"
 string tx_hash           # on-chain receipt of the final release/refund
 string error             
 ---
 # FEEDBACK
+string escrow_id         # hex id, populated once the escrow is open
 string state             # "opening"|"locked"|"awaiting_proof"|"proof_partial"|"releasing"|"timed_out"|"refunding"
 string detail            # human-readable nuance

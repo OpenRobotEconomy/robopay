@@ -4,14 +4,17 @@ from eth_account import Account
 from .base import WalletProvider
 from .registry import WalletRegistry
 from ..spending_limits import SpendingLimits
+from ..nonce_manager import NonceManager
 
 
 class SelfCustodyProvider(WalletProvider):
     def __init__(self, registry: WalletRegistry | None = None,
-                 limits: SpendingLimits | None = None) -> None:
+                 limits: SpendingLimits | None = None,
+                 nonces: NonceManager | None = None) -> None:
         self._account = None
         self._registry = registry or WalletRegistry()
         self.limits = limits or SpendingLimits()
+        self.nonces = nonces
 
     def create(self, label: str = "robot", passphrase: str = "") -> str:
         self._account = Account.create()
