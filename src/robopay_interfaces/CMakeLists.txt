@@ -9,7 +9,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/TransferPreview.srv"
   "srv/WalletCreate.srv"
   "srv/WalletBalance.srv"
-  "srv/PaymentRequest.srv"
   "srv/IdentityRegister.srv"
   "srv/IdentityResolve.srv"
   "srv/ProofSign.srv"
@@ -17,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/EscrowSubmitSignature.srv"
   "action/Escrow.action"
   "msg/EscrowSignature.msg"
+  "msg/PaymentRequest.msg"
   DEPENDENCIES action_msgs
 )
 

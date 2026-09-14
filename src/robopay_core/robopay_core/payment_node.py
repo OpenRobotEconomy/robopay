@@ -33,6 +33,8 @@ from robopay_core.spending_limits import SpendingLimitExceeded, SpendingLimits
 from robopay_core.wallets.self_custody import SelfCustodyProvider
 from robopay_core.chain_client import ChainClient
 from robopay_core.nonce_manager import NonceManager
+from robopay_interfaces.msg import EscrowSignature, PaymentRequest as PaymentRequestMsg
+from robopay_core.invoice import Invoice, InvalidInvoice
 
 
 
@@ -68,6 +70,7 @@ class PaymentNode(Node):
         self.escrow_backend = None
         self.resolver = None
         self._sig_pub = None
+        self._invoice_pub = None
 
         if is_self_custody:
             self._report_wallet_status()
@@ -110,6 +113,13 @@ class PaymentNode(Node):
                 self.get_logger().info("signature exchange: topic")
             else:
                 self.get_logger().info("signature exchange: manual (services only)")
+
+            self._invoice_pub = self.create_publisher(
+                PaymentRequestMsg, "/payment_requests", 10)
+            self.create_subscription(
+                PaymentRequestMsg, "/payment_requests",
+                self._on_invoice, 10)
+            self.get_logger().info("invoices: /payment_requests")
 
 
 
@@ -387,6 +397,49 @@ class PaymentNode(Node):
             response.ok = False
             response.reason = str(e)
         return response
+
+    def _on_invoice(self, msg: PaymentRequestMsg) -> None:
+        try:
+            inv = Invoice.parse({
+                "request_id": msg.request_id,
+                "payee_address": msg.payee_address,
+                "amount": msg.amount,
+                "asset": msg.asset,
+                "memo": msg.memo,
+                "settlement": msg.settlement,
+                "terms_hash": msg.terms_hash,
+            })
+        except InvalidInvoice as e:
+            self.get_logger().warn(f"ignoring malformed invoice: {e}")
+            return
+
+        self.get_logger().info(
+            f"invoice received: {inv.amount} {inv.asset} to "
+            f"{inv.payee_address[:10]}... via {inv.settlement} "
+            f"[{inv.memo}] (id {inv.request_id[:8]})")
+
+    def publish_invoice(self, payee: str, amount: str, memo: str = "",
+                        settlement: str = "direct", asset: str = "USDC",
+                        terms_hash: str = "") -> str:
+        inv = Invoice.create(payee=payee, amount=amount, memo=memo,
+                             settlement=settlement, asset=asset,
+                             terms_hash=terms_hash)
+        if self._invoice_pub is None:
+            raise RuntimeError("invoice publishing is not enabled")
+
+        out = PaymentRequestMsg()
+        out.request_id = inv.request_id
+        out.payee_address = inv.payee_address
+        out.amount = inv.amount
+        out.asset = inv.asset
+        out.memo = inv.memo
+        out.settlement = inv.settlement
+        out.terms_hash = inv.terms_hash
+        self._invoice_pub.publish(out)
+
+        self.get_logger().info(f"invoice published: {inv.amount} {inv.asset} "
+                               f"[{inv.memo}] (id {inv.request_id[:8]})")
+        return inv.request_id
 
 
 def main() -> None:
