@@ -82,9 +82,11 @@ def balance(
     console.print(f"[bold]{address}[/bold]  [dim]on {chain}[/dim]")
     console.print(f"  USDC: [green]{usdc}[/green]")
     console.print(f"  ETH:  [green]{gas}[/green]  [dim](for gas)[/dim]")
-    if float(gas) == 0:
-        console.print()
-        console.print("[yellow]no ETH - transactions will fail without gas[/yellow]")
+
+    if float(usdc) == 0 and float(gas) == 0:
+        console.print(f"\n[dim]nothing here - did you mean --chain {_other_chain(chain)}?[/dim]")
+    elif float(gas) == 0:
+        console.print("\n[yellow]no ETH - transactions will fail without gas[/yellow]")
 
 
 @app.command("fund")
@@ -102,10 +104,10 @@ def fund(
     gas_before = client.native_balance(address)
 
     console.print()
-    console.print(f"[bold]Fund this wallet[/bold]  [dim]on {chain}[/dim]")
+    console.print("[bold]Fund this wallet[/bold]")
+    console.print(f"  {_network_banner(chain)}")
     console.print()
     console.print(f"  [bold cyan]{address}[/bold cyan]")
-    console.print()
 
     qr = qrcode.QRCode(border=1)
     qr.add_data(address)
@@ -125,8 +127,10 @@ def fund(
         console.print("  USDC  https://faucet.circle.com  [dim](pick Base Sepolia)[/dim]")
         console.print("  ETH   https://portal.cdp.coinbase.com/products/faucet")
     else:
-        console.print("[bold]Send real USDC and a little ETH to the address above.[/bold]")
-        console.print("[yellow]Mainnet: this is real money. Double-check the address.[/yellow]")
+        console.print("[dim]MAINNET [/dim]")
+        console.print("Send USDC and a little ETH to the address above.")
+        console.print("[yellow]Double-check the address before sending. "
+                      "Transfers cannot be reversed.[/yellow]")
 
     if not watch:
         return
@@ -152,7 +156,14 @@ def fund(
         console.print("\n[dim]stopped watching[/dim]")
 
 
+def _network_banner(chain: str) -> str:
+    if "sepolia" in chain or "testnet" in chain:
+        return f"[dim]{chain} · testnet[/dim]"
+    return f"[dim]{chain} · MAINNET [/dim]"
 
+
+def _other_chain(chain: str) -> str:
+    return "base" if "sepolia" in chain else "base-sepolia"
 
 
 def main() -> None:

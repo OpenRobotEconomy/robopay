@@ -15,6 +15,7 @@ CHAINS = {
         "chain_id": 8453,
         "rpc_env": "BASE_MAINNET_RPC_URL",
         "public_rpc": "https://mainnet.base.org",
+        "escrow": "0x7c41381C461AA546B8953d35d5bF61321AA251Ed",
         "tokens": {
             "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         },
