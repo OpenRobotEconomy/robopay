@@ -19,11 +19,12 @@ Payments settle in USDC on Base.
 
 ## Why
 
-Robots are starting to need to pay each other. A delivery robot buys a ride
+As robots start entering the economy and become independant economic actors,
+they will start to have the need to pay each other. A delivery robot buys a ride
 from an autonomous van. A drone pays a charging pad for power. A rover buys a
 localisation fix from a neighbour that has already mapped the area.
 
-Two problems sit in the way, and only one of them is about money.
+Two main problems sit in the way, for how they transact between each other.
 
 The first is **settlement**. Robots operate continuously, across owners and
 borders, in amounts far too small for card rails or invoices. Stablecoins fit
