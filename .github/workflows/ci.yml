@@ -16,8 +16,6 @@ jobs:
             experimental: false
           - ros_distro: jazzy
             experimental: false
-          - ros_distro: lyrical      
-            experimental: true
     container: ros:${{ matrix.ros_distro }}
     steps:
       - uses: actions/checkout@v4
